@@ -5,7 +5,7 @@ service:
 downloadDashboardsImage:
   repository: dciangot/curl
   tag: latest
-  #repository: curlimages/curl 
+  #repository: curlimages/curl
   #tag: 7.73.0
   sha: ""
   pullPolicy: IfNotPresent
@@ -42,14 +42,20 @@ dashboardProviders:
       editable: true
       options:
         path: /var/lib/grafana/dashboards
+grafana.ini:
+  server:
+    domain: "{{ nginx_ingress.dns_name }}"
+    root_url: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+    serve_from_sub_path: true
 ingress:
   enabled: true
   annotations:
     kubernetes.io/ingress.class: nginx
     cert-manager.io/cluster-issuer: "selfsigned-issuer"
+  path: /grafana
   hosts:
-    - "grafana.{{nginx_ingress.master_public_ip }}.myip.cloud.infn.it"
+    - "{{ nginx_ingress.dns_name }}"
   tls:
     - hosts:
-      - "grafana.{{nginx_ingress.master_public_ip }}.myip.cloud.infn.it"
+      - "{{ nginx_ingress.dns_name }}"
       secretName: grafana-selfsigned

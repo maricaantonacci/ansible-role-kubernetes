@@ -14,10 +14,10 @@ spec:
   tls:
     - secretName: kubernetes-api-cert
       hosts:    
-        - api-kubernetes.{{nginx_ingress.master_public_ip }}.myip.cloud.infn.it
+        - {{nginx_ingress.dns_name }}
 
   rules:
-  - host: api-kubernetes.{{nginx_ingress.master_public_ip }}.myip.cloud.infn.it
+  - host: {{nginx_ingress.dns_name }}
     http:
       paths:
       - path: "/"
