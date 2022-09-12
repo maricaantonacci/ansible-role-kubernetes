@@ -38,11 +38,11 @@
 - name: install calico
   block:
   - get_url:
-    url: https://docs.projectcalico.org/manifests/custom-resources.yaml
-    dest: /etc/kube-calico-crds.yml
+      url: https://docs.projectcalico.org/manifests/custom-resources.yaml
+      dest: /etc/kube-calico-crds.yml
   - get_url:
-    url: https://docs.projectcalico.org/manifests/tigera-operator.yaml 
-    dest: /etc/kube-calico-operator.yml
+      url: https://docs.projectcalico.org/manifests/tigera-operator.yaml 
+      dest: /etc/kube-calico-operator.yml
   - command: "{{item}}"
     with_items:
       - 'kubectl apply -f /etc/kube-calico-operator.yml'
@@ -104,7 +104,9 @@
       - "helm upgrade --install --cleanup-on-fail --wait --timeout 30m0s \
                               ingress-nginx \
                               ingress-nginx/ingress-nginx \
+                              --set controller.allowSnippetAnnotations=false \
                               --namespace=ingress-nginx \
+                              --version {{ nginx_ingress_helm_version }} \
                               --values /etc/nginx-ingress-values.yml"
   when: nginx_ingress.enabled
 
@@ -123,7 +125,7 @@
           - "helm upgrade --install --cleanup-on-fail --wait --timeout 30m0s \
                       cert-manager jetstack/cert-manager \
                       --namespace cert-manager \
-                      --version v1.1.0 \
+                      --version {{ cert_manager_helm_version }} \
                       --set installCRDs=true"
   when: nginx_ingress.enabled
 
@@ -161,6 +163,7 @@
       - "helm upgrade --install --cleanup-on-fail --wait --timeout 30m0s \
                              dashboard kubernetes-dashboard/kubernetes-dashboard \
                              --namespace=kube-system \
+                             --version {{ dashboard_helm_version }} \
                              --values /etc/dashboard-values.yml"
   when: nginx_ingress.enabled
 
@@ -182,6 +185,7 @@
       - "helm upgrade --install --cleanup-on-fail --wait --timeout 30m0s \
                              prometheus prometheus/prometheus \
                              --namespace=prometheus \
+                             --version {{ prometheus_helm_version }} \
                              --values /etc/prometheus-values.yml"
   when: nginx_ingress.enabled
 
@@ -199,6 +203,7 @@
       - kubectl apply -f /etc/eagle-namespace.yml
       - "helm upgrade --install --cleanup-on-fail --wait --timeout 30m0s \
                              kube-eagle kube-eagle/kube-eagle \
+                             --version {{ kube_eagle_helm_version }} \
                              --namespace=kube-eagle"
   when: nginx_ingress.enabled
 
@@ -224,6 +229,7 @@
       - "helm upgrade --install --cleanup-on-fail --wait --timeout 30m0s \
                              grafana grafana/grafana \
                              --namespace=grafana \
+                             --version {{ grafana_helm_version }}
                              --values /etc/grafana-values.yml"
   when: nginx_ingress.enabled
 
@@ -232,16 +238,16 @@
     src: files/kubeconfig
     dest: /etc/kubeconfig
   
-- name: expose apiserver trhough ingress
-  block:
-    - template:
-        src: templates/api-server-ingress.yaml
-        dest: /etc/api-server-ingress.yaml
-    - command: "{{ item }}"
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
-      with_items:
-      - kubectl apply -f /etc/api-server-ingress.yaml
+#- name: expose apiserver trhough ingress
+#  block:
+#    - template:
+#        src: templates/api-server-ingress.yaml
+#        dest: /etc/api-server-ingress.yaml
+#    - command: "{{ item }}"
+#      environment:
+#        KUBECONFIG: /etc/kubernetes/admin.conf
+#      with_items:
+#      - kubectl apply -f /etc/api-server-ingress.yaml
 
 - name: create service account for remote access
   shell: |
@@ -251,7 +257,7 @@
     && export TOKENNAME=`kubectl -n kube-system get serviceaccount/admin -o jsonpath='{.secrets[0].name}'` \
     && export TOKEN=`kubectl -n kube-system get secret $TOKENNAME -o jsonpath='{.data.token}' | base64 -d` \
     &&  kubectl config --kubeconfig=/etc/kubeconfig set-credentials admin --token=$TOKEN \
-    && kubectl config --kubeconfig=/etc/kubeconfig set-cluster public --server=https://api-kubernetes.{{nginx_ingress.master_public_ip }}.myip.cloud.infn.it --insecure-skip-tls-verify \
+    && kubectl config --kubeconfig=/etc/kubeconfig set-cluster public --server=https://{{nginx_ingress.dns_name }}:6443 --insecure-skip-tls-verify \
     && kubectl config --kubeconfig=/etc/kubeconfig set-context public --cluster=public --namespace=default --user=admin \
     && kubectl config --kubeconfig=/etc/kubeconfig use-context public
   environment:
